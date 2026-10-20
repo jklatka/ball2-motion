@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {WebSocket} from 'ws';
+import {createApp} from '../server.mjs';
+
+test('hosted receiver pairs, authenticates, relays, isolates rooms, and reports disconnects',async t=>{
+  const app=createApp();
+  await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>app.close());
+  const base=`http://127.0.0.1:${app.server.address().port}`;
+  const wsbase=base.replace('http','ws');
+  assert.equal((await fetch(base+'/health')).status,200);
+  const page=await fetch(base+'/');assert.equal(page.status,200);
+  assert.ok(page.headers.get('content-security-policy').includes(`wss://127.0.0.1:${app.server.address().port}`));
+  assert.ok((await page.text()).includes('Motion Lab'));
+  assert.equal((await fetch(base+'/api/session',{method:'POST',headers:{Origin:'https://attacker.example'}})).status,403);
+  async function session(){return (await fetch(base+'/api/session',{method:'POST'})).json();}
+  const room=await session(),other=await session();
+  const rejected=new WebSocket(`${wsbase}/viewer/${room.id}/invalid`);
+  const [error]=await once(rejected,'error');assert.match(error.message,/403/);
+  const viewer=new WebSocket(`${wsbase}/viewer/${room.id}/${room.viewKey}`);
+  const initial=once(viewer,'message');await once(viewer,'open');
+  assert.equal(JSON.parse((await initial)[0]).connected,false);
+  const foreign=new WebSocket(`${wsbase}/viewer/${other.id}/${other.viewKey}`);
+  let foreignFrames=0;foreign.on('message',data=>{if(JSON.parse(data).type==='stream')foreignFrames++;});
+  await once(foreign,'open');
+  const connected=once(viewer,'message');
+  const producer=new WebSocket(`${wsbase}/ingest/${room.id}/${room.ingestKey}`);
+  await once(producer,'open');assert.equal(JSON.parse((await connected)[0]).connected,true);
+  const duplicate=new WebSocket(`${wsbase}/ingest/${room.id}/${room.ingestKey}`);
+  const [duplicateError]=await once(duplicate,'error');assert.match(duplicateError.message,/409/);
+  const next=once(viewer,'message');
+  producer.send(JSON.stringify({eventType:'stream',ballId:'abc',samples:[{timestamp:1}],velocities:[[1,2,3]]}));
+  const data=JSON.parse((await next)[0]);
+  assert.equal(data.type,'stream');assert.deepEqual(data.event.velocities,[[1,2,3]]);
+  const closed=once(viewer,'message');producer.close();
+  assert.equal(JSON.parse((await closed)[0]).connected,false);
+  assert.equal(foreignFrames,0);
+});
