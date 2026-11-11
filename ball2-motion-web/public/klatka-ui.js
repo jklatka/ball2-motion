@@ -2302,6 +2302,7 @@ var qrcode = function() {
   if(!address||!box)return;
   const quick=document.createElement('section');
   quick.className='quick-pair';
+    if(document.querySelector('.quick-pair'))return;
   quick.innerHTML='<canvas id="pairQr" width="150" height="150" aria-label="QR code for moving the stream address to a phone"></canvas><div><h3>Pair Ball 2</h3><p>Scan, copy the stream address, and paste it into Ball 2.</p><div class="pair-actions"><button type="button" id="sharePair">Share to phone</button><button type="button" id="copyPair">Copy stream address</button></div></div>';
   box.prepend(quick);
   const full=document.createElement('details');
