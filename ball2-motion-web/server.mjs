@@ -8,10 +8,11 @@ const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
-  ['/motion.js', ['motion.js', 'text/javascript; charset=utf-8']]
-]);,
-  ['/klatka.css', ['klatka.css', 'text/css; charset=utf-8']],
+  ['/motion.js', ['motion.js', 'text/javascript; charset=utf-8']],
+    ['/klatka.css', ['klatka.css', 'text/css; charset=utf-8']],
   ['/klatka-ui.js', ['klatka-ui.js', 'text/javascript; charset=utf-8']]
+
+]);
 const token = () => randomBytes(24).toString('base64url');
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' &&
   Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
